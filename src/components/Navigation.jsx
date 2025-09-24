@@ -3,10 +3,16 @@ import { Home, Calculator, Package, Clock, Menu, X, User, Settings, LogOut } fro
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAppStore } from "@/lib/store"
+import { supabase } from "@/lib/supabase"
 
 export default function Navigation() {
-  const { currentPage, setCurrentPage, budgets, items, tasks, user } = useAppStore()
+  const { currentPage, setCurrentPage, budgets, items, tasks, user, setUser } = useAppStore()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   const navigationItems = [
     {
@@ -133,7 +139,11 @@ export default function Navigation() {
                   <Settings className="h-4 w-4" />
                   Configurações
                 </Button>
-                <Button variant="ghost" className="w-full justify-start gap-2">
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start gap-2"
+                  onClick={handleLogout}
+                >
                   <LogOut className="h-4 w-4" />
                   Sair
                 </Button>

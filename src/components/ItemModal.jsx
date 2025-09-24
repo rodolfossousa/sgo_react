@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,6 @@ import { ComplexityBadge } from "@/components/ui/complexity-badge"
 import { ModernCard } from "@/components/ui/modern-card"
 import { SearchInput } from "@/components/ui/search"
 import { EmptyState } from "@/components/ui/empty-state"
-import { LoadingOverlay } from "@/components/ui/loading"
 import { useUIStore, useAppStore } from "@/lib/store"
 import { itemsAPI, tasksAPI } from "@/lib/api"
 import { Package, Search } from "lucide-react"
@@ -23,18 +22,16 @@ export default function ItemModal({ onSuccess }) {
     taskIds: []
   })
   const [availableTasks, setAvailableTasks] = useState([])
-  const [filteredTasks, setFilteredTasks] = useState([])
   const [taskSearchTerm, setTaskSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const [errors, setErrors] = useState({})
 
-  // Carregar tarefas disponíveis
+  // Usar tarefas do store
   useEffect(() => {
-    if (isItemModalOpen) {
-      loadAvailableTasks()
+    if (isItemModalOpen && tasks) {
+      setAvailableTasks(tasks)
     }
-  }, [isItemModalOpen])
+  }, [isItemModalOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resetar formulário quando modal abrir/fechar
   useEffect(() => {
@@ -56,31 +53,18 @@ export default function ItemModal({ onSuccess }) {
       setErrors({})
       setTaskSearchTerm("")
     }
-  }, [isItemModalOpen, editingItem])
+  }, [isItemModalOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filtrar tarefas baseado na busca
-  useEffect(() => {
+  const filteredTasks = useMemo(() => {
     if (!taskSearchTerm) {
-      setFilteredTasks(availableTasks)
-    } else {
-      const filtered = availableTasks.filter(task =>
-        task.description.toLowerCase().includes(taskSearchTerm.toLowerCase())
-      )
-      setFilteredTasks(filtered)
+      return availableTasks || []
     }
+    return (availableTasks || []).filter(task =>
+      task.description.toLowerCase().includes(taskSearchTerm.toLowerCase())
+    )
   }, [availableTasks, taskSearchTerm])
 
-  const loadAvailableTasks = async () => {
-    setIsLoadingTasks(true)
-    try {
-      const data = await tasksAPI.getAll()
-      setAvailableTasks(data)
-    } catch (error) {
-      console.error("Erro ao carregar tarefas:", error)
-    } finally {
-      setIsLoadingTasks(false)
-    }
-  }
 
   const handleTaskToggle = (taskId) => {
     setFormData(prev => ({
@@ -93,24 +77,24 @@ export default function ItemModal({ onSuccess }) {
 
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Nome é obrigatório"
     }
-    
+
     if (formData.taskIds.length === 0) {
       newErrors.tasks = "Selecione pelo menos uma tarefa"
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     setIsLoading(true)
     try {
       const itemData = {
@@ -118,13 +102,13 @@ export default function ItemModal({ onSuccess }) {
         description: formData.description.trim(),
         taskIds: formData.taskIds
       }
-      
+
       if (editingItem) {
         await itemsAPI.update(editingItem.id, itemData)
       } else {
         await itemsAPI.create(itemData)
       }
-      
+
       closeItemModal()
       if (onSuccess) onSuccess()
     } catch (error) {
@@ -144,7 +128,7 @@ export default function ItemModal({ onSuccess }) {
     return complexities
   }
 
-  const selectedTasks = availableTasks.filter(task => formData.taskIds.includes(task.id))
+  const selectedTasks = (availableTasks || []).filter(task => formData.taskIds.includes(task.id))
 
   return (
     <Dialog open={isItemModalOpen} onOpenChange={closeItemModal}>
@@ -229,76 +213,72 @@ export default function ItemModal({ onSuccess }) {
 
             {/* Lista de tarefas disponíveis */}
             <div className="flex-1 overflow-hidden">
-              <LoadingOverlay isLoading={isLoadingTasks}>
-                <div className="h-full overflow-y-auto space-y-2 pr-2">
-                  {filteredTasks.length === 0 ? (
-                    <EmptyState
-                      icon={Search}
-                      title="Nenhuma tarefa encontrada"
-                      description={taskSearchTerm ? 
-                        "Nenhuma tarefa corresponde à sua busca." : 
-                        "Nenhuma tarefa disponível."
-                      }
-                    />
-                  ) : (
-                    filteredTasks.map(task => {
-                      const isSelected = formData.taskIds.includes(task.id)
-                      const complexities = getTaskComplexities(task)
-                      
-                      return (
-                        <ModernCard
-                          key={task.id}
-                          className={`p-3 cursor-pointer transition-colors ${
-                            isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
+              <div className="h-full overflow-y-auto space-y-2 pr-2">
+                {filteredTasks.length === 0 ? (
+                  <EmptyState
+                    icon={Search}
+                    title="Nenhuma tarefa encontrada"
+                    description={taskSearchTerm ?
+                      "Nenhuma tarefa corresponde à sua busca." :
+                      "Nenhuma tarefa disponível."
+                    }
+                  />
+                ) : (
+                  filteredTasks.map(task => {
+                    const isSelected = formData.taskIds.includes(task.id)
+                    const complexities = getTaskComplexities(task)
+
+                    return (
+                      <ModernCard
+                        key={task.id}
+                        className={`p-3 cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
                           }`}
-                          onClick={() => handleTaskToggle(task.id)}
-                          hover={!isSelected}
-                        >
-                          <div className="flex items-start space-x-3">
-                            <Checkbox
-                              checked={isSelected}
-                              onChange={() => handleTaskToggle(task.id)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 space-y-1">
-                              <h4 className="font-medium text-sm">{task.description}</h4>
-                              <div className="flex flex-wrap gap-1">
-                                {complexities.map((complexity, index) => (
-                                  <ComplexityBadge key={index} complexity={complexity} />
-                                ))}
-                              </div>
+                        hover={!isSelected}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleTaskToggle(task.id)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <h4 className="font-medium text-sm">{task.description}</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {complexities.map((complexity, index) => (
+                                <ComplexityBadge key={index} complexity={complexity} />
+                              ))}
                             </div>
                           </div>
-                        </ModernCard>
-                      )
-                    })
-                  )}
-                </div>
-              </LoadingOverlay>
+                        </div>
+                      </ModernCard>
+                    )
+                  })
+                )}
+              </div>
             </div>
-
-            {errors.tasks && (
-              <p className="text-sm text-red-500">{errors.tasks}</p>
-            )}
           </div>
 
-          {/* Erro geral */}
-          {errors.general && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{errors.general}</p>
-            </div>
+          {errors.tasks && (
+            <p className="text-sm text-red-500">{errors.tasks}</p>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeItemModal}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Salvando..." : (editingItem ? "Atualizar" : "Criar")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {/* Erro geral */}
+        {errors.general && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{errors.general}</p>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={closeItemModal}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Salvando..." : (editingItem ? "Atualizar" : "Criar")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+    </Dialog >
   )
 }

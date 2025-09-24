@@ -22,7 +22,7 @@ export default function TasksPage() {
   // Carregar tarefas ao montar o componente
   useEffect(() => {
     loadTasks()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filtrar tarefas baseado na busca
   useEffect(() => {

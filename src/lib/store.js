@@ -40,18 +40,17 @@ export const useAppStore = create((set, get) => ({
   
   // Função para carregar dados iniciais
   loadInitialData: async () => {
+    const state = get()
+    if (state.isLoading) return // Evitar múltiplas chamadas simultâneas
+    
     set({ isLoading: true })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        set({ user })
-        // Carregar dados do usuário
-        await Promise.all([
-          get().loadTasks(),
-          get().loadItems(),
-          get().loadBudgets()
-        ])
-      }
+      // Carregar dados do usuário
+      await Promise.all([
+        get().loadTasks(),
+        get().loadItems(),
+        get().loadBudgets()
+      ])
     } catch (error) {
       console.error('Erro ao carregar dados iniciais:', error)
     } finally {

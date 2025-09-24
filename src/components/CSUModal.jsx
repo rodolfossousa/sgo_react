@@ -65,7 +65,7 @@ export default function CSUModal({ onSuccess }) {
         budgetId: formData.budgetId
       }
       
-      if (editingCSU) {
+      if (editingCSU && editingCSU.id) {
         await csusAPI.update(editingCSU.id, csuData)
       } else {
         await csusAPI.create(csuData)
