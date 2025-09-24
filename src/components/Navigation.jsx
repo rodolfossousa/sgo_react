@@ -9,9 +9,15 @@ export default function Navigation() {
   const { currentPage, setCurrentPage, budgets, items, tasks, user, setUser } = useAppStore()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  // Função de logoff
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+      // Opcional: redirecionar para página inicial ou mostrar modal de login
+    } catch (error) {
+      console.error('Erro ao fazer logoff:', error)
+    }
   }
 
   const navigationItems = [
@@ -88,12 +94,21 @@ export default function Navigation() {
 
           {/* User Menu & Mobile Toggle */}
           <div className="flex items-center space-x-2">
-            {/* User Avatar */}
+            {/* User Avatar e Logoff */}
             <Button variant="ghost" size="sm" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">
                 {user?.email?.split('@')[0] || 'Usuário'}
               </span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Sair"
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
 
             {/* Mobile Menu Toggle */}
