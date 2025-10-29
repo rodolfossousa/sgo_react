@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from './supabase'
+import { calculateCSUHours } from './api'
 
 // Store principal da aplicação
 export const useAppStore = create((set, get) => ({
@@ -116,7 +117,18 @@ export const useAppStore = create((set, get) => ({
         .order('created_at', { ascending: false })
       
       if (error) throw error
-      set({ budgets: data || [] })
+      // Calcular horas por CSU e somatório por budget
+      const budgetsWithHours = (data || []).map(budget => {
+        const csus = (budget.csus || []).map(csu => {
+          const hours = calculateCSUHours(csu)
+          return { ...csu, total_hours: hours }
+        })
+
+        const totalHours = csus.reduce((acc, c) => acc + (c.total_hours || 0), 0)
+        return { ...budget, csus, total_hours: totalHours }
+      })
+
+      set({ budgets: budgetsWithHours })
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error)
     }
